@@ -1,0 +1,20 @@
+{
+  "name": "Friends Garage - Orçamentos",
+  "short_name": "Friends Garage",
+  "description": "Sistema de orçamentos profissionais com fotos para oficina mecânica",
+  "start_url": "./índex.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "background_color": "#0f172a",
+  "theme_color": "#d97706",
+  "icons": [
+    {
+      "src": "logo-friends-garage.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#d97706">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Friends Garage">
+    <link rel="apple-touch-icon" href="logo-friends-garage.jpeg">
+    <title>Friends Garage - Sistema de Orçamentos Profissionais</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2pdf.js para exportação de PDFs de alta fidelidade -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            width: 100%;
+        }
+        input, select, textarea, button {
+            max-width: 100%;
+        }
+        
+        /* Emulação de Folha A4 para visualização fidedigna em telas grandes */
+        .a4-preview {
+            width: 100%;
+            max-width: 210mm;
+            min-height: 297mm;
+            padding: 10mm;
+            margin: 0 auto;
+            background: #ffffff;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+        }
+
+        /* Ajustes específicos de A4 para telas desktop que preservam proporção */
+        @media (min-width: 768px) {
+            .a4-preview {
+                padding: 16mm;
+            }
+        }
+        
+        /* Estilização para o logo melhorado digitalmente */
+        .logo-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid #d97706; /* Dourado do logo */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            overflow: hidden;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 640px) {
+            .logo-container {
+                width: 85px;
+                height: 85px;
+            }
+        }
+
+        .logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* CSS para quebra de página correta ao gerar o PDF */
+        .page-break {
+            page-break-before: always;
+            break-before: page;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            .a4-preview {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                min-height: auto;
+            }
+        }
+
+        /* Autocomplete do catálogo de peças */
+        .peca-autocomplete-wrap {
+            position: relative;
+        }
+        .peca-sugestoes {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            z-index: 60;
+            max-height: 220px;
+            overflow-y: auto;
+            background: #0f172a;
+            border: 1px solid #d97706;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+            list-style: none;
+            margin: 0;
+            padding: 0.25rem 0;
+        }
+        .peca-sugestoes li {
+            padding: 0.45rem 0.65rem;
+            font-size: 0.7rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .peca-sugestoes li .sugestao-valor {
+            color: #fbbf24;
+            font-weight: 800;
+            white-space: nowrap;
+            font-size: 0.65rem;
+        }
+        .peca-sugestoes li:last-child {
+            border-bottom: none;
+        }
+        .peca-sugestoes li:hover,
+        .peca-sugestoes li.peca-sugestao-ativa {
+            background: #d97706;
+            color: #0f172a;
+            font-weight: 700;
+        }
+        .peca-sugestoes-vazio {
+            padding: 0.5rem 0.65rem;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        /* Responsivo: prévia A4 no celular */
+        @media (max-width: 1023px) {
+            .a4-preview {
+                padding: 8mm;
+                min-height: auto;
+                font-size: 95%;
+            }
+            #secao-preview.oculto-mobile {
+                display: none !important;
+            }
+            #secao-formulario.oculto-mobile {
+                display: none !important;
+            }
+        }
+        @media (max-width: 640px) {
+            .a4-preview {
+                padding: 5mm;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+            }
+            #toast-notification {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+            .item-linha-mobile .col-nome { grid-column: 1 / -1; }
+            .item-linha-mobile .col-tipo { grid-column: 1 / -1; }
+        }
+        .aba-mobile-ativa {
+            background-color: #d97706 !important;
+            color: #0f172a !important;
+            font-weight: 800;
+        }
+        #indicador-salvamento.salvo {
+            color: #34d399;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen text-slate-100 flex flex-col">
+
+    <!-- Notificação Flutuante Personalizada -->
+    <div id="toast-notification" class="fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 transition-all duration-300 ease-out bg-amber-500 text-slate-950 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 font-bold text-sm">
+        <i data-lucide="info" class="w-5 h-5"></i>
+        <span id="toast-text">Notificação</span>
+    </div>
+
+    <!-- Barra de Navegação Superior (Ocultada no PDF) - Totalmente Responsiva -->
+    <header class="bg-black/80 backdrop-blur-md text-white py-4 px-4 sm:px-6 no-print sticky top-0 z-40 border-b border-amber-600/30">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full md:w-auto justify-center md:justify-start">
+                <div class="logo-container w-11 h-11 sm:w-12 sm:h-12 border-2">
+                    <img src="logo-friends-garage.jpeg" alt="Friends Garage" class="logo-img">
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-black tracking-wider text-amber-500 text-center md:text-left">FRIENDS <span class="text-white">GARAGE</span></h1>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center md:text-left">Painel de Orçamentos com Fotos</p>
+                    <p id="indicador-salvamento" class="text-[8px] text-slate-500 mt-0.5 text-center md:text-left">Salvamento automático ativo</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-row items-center justify-center gap-3 w-full md:w-auto">
+                <button onclick="carregarExemplo()" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold transition-all border border-slate-700 flex items-center justify-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+                    Exemplo
+                </button>
+                <button onclick="gerarPDF()" class="flex-1 md:flex-none bg-amber-600 hover:bg-amber-500 text-black px-3 sm:px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20">
+                    <i data-lucide="file-check" class="w-4 h-4"></i>
+                    Exportar PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Abas no celular: Formulário / Prévia -->
+    <div class="lg:hidden no-print sticky top-[4.5rem] z-30 max-w-7xl mx-auto w-full px-4 pt-2">
+        <div class="flex gap-2 bg-slate-800/95 backdrop-blur p-1.5 rounded-xl border border-slate-700">
+            <button type="button" id="tab-formulario" onclick="alternarAbaMobile('form')" class="aba-mobile-ativa flex-1 text-xs font-bold py-2.5 rounded-lg bg-slate-700 text-white transition-colors">Formulário</button>
+            <button type="button" id="tab-preview" onclick="alternarAbaMobile('preview')" class="flex-1 text-xs font-bold py-2.5 rounded-lg bg-slate-700 text-white transition-colors">Prévia PDF</button>
+        </div>
+    </div>
+
+    <!-- Área Principal de Trabalho (Grid muda de 1 coluna em mobile para 12 colunas em telas grandes) -->
+    <main class="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full flex-grow min-w-0">
+        
+        <!-- Formulário Lateral Esquerdo (Ocultado no PDF) -->
+        <section id="secao-formulario" class="lg:col-span-5 space-y-4 md:space-y-6 no-print text-slate-800 min-w-0 w-full">
+            
+            <!-- Painel do Logotipo e Nome da Oficina -->
+            <div class="bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-sm space-y-4 text-white">
+                <div class="flex items-center gap-2 border-b border-slate-700 pb-3">
+                    <i data-lucide="store" class="text-amber-500 w-5 h-5"></i>
+                    <h2 class="font-bold text-white text-sm">Dados da Oficina</h2>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- Preview do Logo Integrado (Flex adaptável) -->
+                    <div class="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center sm:text-left">
+                        <div class="logo-container">
+                            <img id="oficina-logo-preview-src" src="logo-friends-garage.jpeg" class="logo-img" alt="Logo Friends Garage">
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-xs font-bold text-amber-500">Logotipo Oficial — Friends Garage</p>
+                            <p class="text-[9px] text-slate-400">Velas, pistões e preparações. Aparece no orçamento e no PDF.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome da Oficina</label>
+                            <input type="text" id="oficina-nome" value="Friends Garage" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">CNPJ</label>
+                            <input type="text" id="oficina-nif" value="31.298.774/0001-74" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Telefone de Contato</label>
+                            <input type="text" id="oficina-contacto" value="(11) 99898-1864" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">E-mail Comercial</label>
+                            <input type="email" id="oficina-email" value="friends.garage13@gmail.com" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Endereço Completo</label>
+                            <input type="text" id="oficina-morada" value="Rua José Fracarolli, 359 - Jd. Nossa Senhora Aparecida, Francisco Morato - SP" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados do Cliente e Veículo -->
+            <div class="bg-slate-850 p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-sm space-y-4 text-white">
+                <div class="flex items-center gap-2 border-b border-slate-700 pb-3">
+                    <i data-lucide="user-check" class="text-amber-500 w-5 h-5"></i>
+                    <h2 class="font-bold text-white text-sm">Cliente & Ficha do Veículo</h2>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Cliente</label>
+                            <input type="text" id="cliente-nome" value="Carlos Eduardo Magalhães" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Telefone Celular</label>
+                            <input type="text" id="cliente-tel" value="(11) 99123-4567" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Orçamento Nº</label>
+                            <input type="text" id="orcamento-numero" value="FG-2026-052" oninput="sincronizarDados()" class="w-full bg-slate-900 text-amber-500 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-700 pt-3 mt-2 space-y-3">
+                        <span class="block text-[10px] font-bold text-amber-500 uppercase tracking-wider">Identificação do Veículo</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="peca-autocomplete-wrap">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Marca do Veículo</label>
+                                <input type="text" id="veiculo-marca" value="Volkswagen" oninput="sincronizarDados()" placeholder="Digite a letra da marca (ex: V, F, C...)" autocomplete="off" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                                <ul id="sugestoes-marca" class="peca-sugestoes hidden" role="listbox" aria-label="Marcas de veículos"></ul>
+                            </div>
+                            <div class="peca-autocomplete-wrap">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Modelo</label>
+                                <input type="text" id="veiculo-modelo" value="Golf" oninput="sincronizarDados()" placeholder="Selecione a marca e digite a letra do modelo..." autocomplete="off" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                                <ul id="sugestoes-modelo" class="peca-sugestoes hidden" role="listbox" aria-label="Modelos do veículo"></ul>
+                            </div>
+                            <div class="peca-autocomplete-wrap">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Versão</label>
+                                <input type="text" id="veiculo-versao" value="GTI 2.0" oninput="sincronizarDados()" placeholder="Selecione o modelo e digite a versão..." autocomplete="off" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                                <ul id="sugestoes-versao" class="peca-sugestoes hidden" role="listbox" aria-label="Versões do veículo"></ul>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Placa</label>
+                                <input type="text" id="veiculo-matricula" value="FGD-4G20" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Quilometragem (KM)</label>
+                                <input type="text" id="veiculo-km" value="78.500" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ano / Cor</label>
+                                <input type="text" id="veiculo-detalhes" value="2019 / Cinza Carbono" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listagem e Adição de Peças e Serviços -->
+            <div class="bg-slate-850 p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-sm space-y-4 text-white">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="file-spreadsheet" class="text-amber-500 w-5 h-5"></i>
+                        <h2 class="font-bold text-white text-sm">Peças & Serviços</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-2 justify-end">
+                        <button type="button" onclick="adicionarNovoItem('', 'peça')" class="text-[11px] bg-amber-600 hover:bg-amber-500 text-black font-extrabold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors shadow">
+                            <i data-lucide="package" class="w-3.5 h-3.5"></i> Nova Peça
+                        </button>
+                        <button type="button" onclick="adicionarNovoItem('', 'serviço')" class="text-[11px] bg-sky-600 hover:bg-sky-500 text-white font-extrabold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors shadow">
+                            <i data-lucide="wrench" class="w-3.5 h-3.5"></i> Novo Serviço
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[9px] text-slate-400 -mt-2">Peças: digite a letra e selecione no catálogo + foto. Serviços: digite a letra, escolha o serviço e o valor da mão de obra é preenchido automaticamente (você pode alterar).</p>
+
+                <div id="itens-lista" class="space-y-4">
+                    <!-- Gerados de forma dinâmica pelo motor JavaScript -->
+                </div>
+
+                <div class="border-t border-slate-700 pt-4 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Desconto (R$)</label>
+                            <input type="number" id="desconto-valor" value="100" min="0" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Garantia (Meses)</label>
+                            <input type="number" id="garantia-meses" value="6" min="1" oninput="sincronizarDados()" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Observações do Orçamento</label>
+                        <textarea id="observacoes" oninput="sincronizarDados()" rows="2" class="w-full bg-slate-900 text-white border border-slate-700 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-amber-500 outline-none">Garantia de 6 meses para peças instaladas. Pagamento em até 6x sem juros no cartão ou desconto de 5% à vista no PIX.</textarea>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Previewer em Tempo Real do PDF A4 (Lado Direito - Totalmente adaptável às telas de tablet e computador) -->
+        <section id="secao-preview" class="lg:col-span-7 flex flex-col items-center w-full min-w-0 overflow-x-auto lg:overflow-x-visible oculto-mobile">
+            
+            <!-- Contentor Impresso A4 -->
+            <div id="orcamento-pdf-conteudo" class="a4-preview relative select-none pointer-events-none text-slate-800 flex flex-col justify-between">
+                
+                <!-- PÁGINA 1: CABEÇALHO, CLIENTE, VEÍCULO E TABELA DE VALORES -->
+                <div>
+                    <!-- Cabeçalho de Negócio -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center sm:items-start border-b-4 border-slate-950 pb-5 mb-6 gap-4 text-center sm:text-left">
+                        <div class="flex flex-col sm:flex-row items-center gap-4">
+                            <!-- Box do Logotipo Customizado Friends Garage -->
+                            <div class="logo-container">
+                                <img id="preview-logo-img" src="logo-friends-garage.jpeg" class="logo-img" alt="Friends Garage Logo">
+                            </div>
+                            <div>
+                                <h2 id="preview-oficina-nome" class="text-xl font-black text-slate-900 tracking-tight">FRIENDS GARAGE</h2>
+                                <p id="preview-oficina-nif" class="text-[9px] text-slate-500 font-bold uppercase">CNPJ: 31.298.774/0001-74</p>
+                                <p id="preview-oficina-morada" class="text-[9px] text-slate-500 leading-snug mt-1">Rua José Fracarolli, 359 - Jd. Nossa Senhora Aparecida, Francisco Morato - SP</p>
+                                <p id="preview-oficina-contactos" class="text-[9px] text-slate-500">Celular: (11) 99898-1864 | E-mail: friends.garage13@gmail.com</p>
+                            </div>
+                        </div>
+                        <div class="text-center sm:text-right flex flex-col items-center sm:items-end">
+                            <span class="bg-amber-600 text-black text-[9px] font-black px-3.5 py-1 rounded-full uppercase tracking-wider">Orçamento Técnico</span>
+                            <h3 class="text-lg font-black text-slate-950 mt-2" id="preview-orcamento-numero">FG-0000</h3>
+                            <p class="text-[9px] text-slate-400 mt-1">Emissão: <span id="preview-data-hoje">--/--/----</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Fichas de Identificação -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-150 mb-6">
+                        <div class="border-b sm:border-b-0 sm:border-r border-slate-200 pb-3 sm:pb-0 sm:pr-4">
+                            <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">Entidade Cliente</h4>
+                            <p id="preview-cliente-nome" class="text-xs font-black text-slate-950">Carlos Eduardo</p>
+                            <p class="text-[10px] text-slate-600 mt-1">Contato: <span id="preview-cliente-tel">(11) 99123-4567</span></p>
+                        </div>
+                        <div class="sm:pl-1">
+                            <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">Ficha Técnica do Veículo</h4>
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] text-slate-600">
+                                <span>Marca/Modelo:</span>
+                                <strong id="preview-veiculo-modelo" class="text-slate-950 text-right">Golf GTI</strong>
+                                <span>Placa:</span>
+                                <strong id="preview-veiculo-matricula" class="text-slate-950 text-right uppercase">FGD-4G20</strong>
+                                <span>Quilometragem:</span>
+                                <strong id="preview-veiculo-km" class="text-slate-950 text-right">-- KM</strong>
+                                <span>Ano/Cor:</span>
+                                <strong id="preview-veiculo-detalhes" class="text-slate-950 text-right">--</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Termo Diagnóstico -->
+                    <div class="bg-amber-500/10 border-l-4 border-amber-600 p-3 rounded-r-xl mb-6 text-[10px] text-slate-700 leading-relaxed">
+                        <span class="font-extrabold text-amber-950 block mb-0.5">Nota de Diagnóstico Técnico (Friends Garage):</span>
+                        Realizamos um diagnóstico detalhado do seu veículo e listamos abaixo as peças que necessitam de substituição imediata, acompanhadas de fotos reais coletadas durante a desmontagem em nossa oficina para sua total clareza e segurança.
+                    </div>
+
+                    <!-- Tabela Principal de Itens (Com rolagem horizontal se for muito estreita no preview da tela) -->
+                    <div class="mb-6 overflow-x-auto">
+                        <table class="w-full text-left text-[10px] min-w-[500px]">
+                            <thead>
+                                <tr class="bg-slate-950 text-white uppercase text-[8px] font-bold tracking-wider">
+                                    <th class="py-2.5 px-3 rounded-l-lg">Componente / Descrição do Serviço</th>
+                                    <th class="py-2.5 px-2">Tipo</th>
+                                    <th class="py-2.5 px-2 text-center">Qtd.</th>
+                                    <th class="py-2.5 px-2 text-right">Preço Un.</th>
+                                    <th class="py-2.5 px-3 text-right rounded-r-lg">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-tabela-corpo" class="divide-y divide-slate-150">
+                                <!-- Conteúdo Dinâmico -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Resumo de Valores e Condições de Venda -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 border-t border-slate-200 pt-5">
+                        <div class="md:col-span-7 space-y-2">
+                            <div>
+                                <h5 class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Garantia e Validade</h5>
+                                <p class="text-[10px] text-slate-700 font-semibold">Garantia total de <span id="preview-garantia-meses">6</span> meses sobre serviços e peças.</p>
+                            </div>
+                            <div>
+                                <h5 class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Condições de Pagamento / Observações</h5>
+                                <p id="preview-observacoes" class="text-[9px] text-slate-550 italic bg-slate-50 p-2.5 rounded-lg border border-slate-150">--</p>
+                            </div>
+                        </div>
+                        <div class="md:col-span-5 bg-slate-950 text-white p-4 rounded-xl space-y-2">
+                            <div class="flex justify-between text-slate-400 text-[10px]">
+                                <span>Total em Peças:</span>
+                                <span id="preview-total-pecas">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[10px]">
+                                <span>Total em Serviços:</span>
+                                <span id="preview-total-servicos">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[10px] border-b border-slate-800 pb-2">
+                                <span>Desconto Concedido:</span>
+                                <span id="preview-total-desconto" class="text-amber-500">- R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="text-[10px] font-black uppercase text-amber-500">Total Geral:</span>
+                                <span id="preview-total-geral" class="text-base font-black text-white">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assinaturas Formais -->
+                <div class="grid grid-cols-2 gap-4 sm:gap-12 mt-10 pt-5 border-t border-slate-200 w-full">
+                    <div class="text-center">
+                        <div class="border-b border-slate-300 w-4/5 mx-auto mb-1"></div>
+                        <p class="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Por Friends Garage</p>
+                        <p id="preview-assinatura-oficina" class="text-[9px] font-black text-slate-800">Friends Garage</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="border-b border-slate-300 w-4/5 mx-auto mb-1"></div>
+                        <p class="text-[8px] text-slate-400 uppercase tracking-wider font-bold">De acordo do Cliente</p>
+                        <p id="preview-assinatura-cliente" class="text-[9px] font-black text-slate-800">Cliente</p>
+                    </div>
+                </div>
+
+                <!-- QUEBRA DE PÁGINA AUTOMÁTICA DO PDF -->
+                <div class="page-break"></div>
+
+                <!-- PÁGINA 2: RELATÓRIO DE EVIDÊNCIAS FOTOGRÁFICAS -->
+                <div class="mt-8 flex flex-col justify-between h-full">
+                    <div>
+                        <div class="border-b-2 border-slate-955 border-slate-950 pb-3 mb-6">
+                            <h3 class="text-sm font-black text-slate-950 tracking-tight flex items-center gap-2 uppercase">
+                                <i data-lucide="camera" class="text-amber-600 w-4.5 h-4.5"></i>
+                                Anexo: Relatório de Evidências Fotográficas
+                            </h3>
+                            <p class="text-[10px] text-slate-500">A Friends Garage preza pela transparência. Abaixo, registramos as peças identificadas com defeito para sua visualização e validação.</p>
+                        </div>
+
+                        <!-- Layout de Grid Dinâmico de Fotos (Responsivo, 1 col em mobile, 2 col em telas maiores) -->
+                        <div id="preview-galeria-fotos" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Gerado de forma automática com imagens das peças -->
+                        </div>
+                    </div>
+
+                    <div class="text-[8px] text-slate-400 text-center mt-12 border-t border-slate-100 pt-4 italic w-full">
+                        Este laudo visual faz parte do orçamento técnico de número <span id="preview-rodape-numero" class="font-bold">FG-0000</span>.
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script src="logo-embed.js"></script>
+    <script src="modelos-veiculos.js"></script>
+    <!-- JavaScript com Motor de Lógica Avançada -->
+    <script>
+        let itensOrcamento = [];
+        let logoBase64 = '';
+        let salvarTimeout = null;
+        let marcaVeiculoAtual = '';
+        let modeloVeiculoAtual = '';
+        const LOGO_OFICIAL = 'logo-friends-garage.jpeg';
+        const STORAGE_KEY = 'friendsGarage_orcamento_v1';
+        const CAMPOS_SALVOS = [
+            'oficina-nome', 'oficina-nif', 'oficina-contacto', 'oficina-email', 'oficina-morada',
+            'cliente-nome', 'cliente-tel', 'orcamento-numero',
+            'veiculo-marca', 'veiculo-modelo', 'veiculo-versao', 'veiculo-matricula', 'veiculo-km', 'veiculo-detalhes',
+            'desconto-valor', 'garantia-meses', 'observacoes'
+        ];
+
+        function salvarDadosLocal() {
+            const dados = {
+                campos: {},
+                itens: itensOrcamento,
+                logoBase64: logoBase64 && logoBase64.startsWith('data:') ? logoBase64 : null,
+                salvoEm: new Date().toISOString()
+            };
+            CAMPOS_SALVOS.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) dados.campos[id] = el.value;
+            });
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+                const ind = document.getElementById('indicador-salvamento');
+                if (ind) {
+                    ind.textContent = 'Salvo automaticamente ✓';
+                    ind.classList.add('salvo');
+                }
+            } catch (e) {
+                console.warn('Não foi possível salvar:', e);
+                showToast('Aviso: dados muito grandes para salvar. Reduza fotos grandes.');
+            }
+        }
+
+        function agendarSalvamento() {
+            clearTimeout(salvarTimeout);
+            salvarTimeout = setTimeout(salvarDadosLocal, 350);
+        }
+
+        function carregarDadosLocal() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return false;
+                const dados = JSON.parse(raw);
+                Object.entries(dados.campos || {}).forEach(([id, valor]) => {
+                    const el = document.getElementById(id);
+                    if (el && valor != null) el.value = valor;
+                });
+                if (Array.isArray(dados.itens) && dados.itens.length) {
+                    itensOrcamento = dados.itens;
+                    desenharListaItensForm();
+                }
+                if (dados.logoBase64) logoBase64 = dados.logoBase64;
+                return true;
+            } catch (e) {
+                console.warn('Erro ao restaurar dados:', e);
+                return false;
+            }
+        }
+
+        function alternarAbaMobile(aba) {
+            const form = document.getElementById('secao-formulario');
+            const preview = document.getElementById('secao-preview');
+            const tabForm = document.getElementById('tab-formulario');
+            const tabPreview = document.getElementById('tab-preview');
+            if (!form || !preview) return;
+
+            if (aba === 'preview') {
+                form.classList.add('oculto-mobile');
+                preview.classList.remove('oculto-mobile');
+                tabForm?.classList.remove('aba-mobile-ativa');
+                tabPreview?.classList.add('aba-mobile-ativa');
+                preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                preview.classList.add('oculto-mobile');
+                form.classList.remove('oculto-mobile');
+                tabPreview?.classList.remove('aba-mobile-ativa');
+                tabForm?.classList.add('aba-mobile-ativa');
+            }
+        }
+
+        function registrarServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            const podeRegistrar = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!podeRegistrar) return;
+            navigator.serviceWorker.register('sw.js').catch((err) => console.warn('PWA:', err));
+        }
+
+        function registrarManifest() {
+            const podeCarregarManifest = location.protocol === 'http:' || location.protocol === 'https:';
+            if (!podeCarregarManifest || document.querySelector('link[rel="manifest"]')) return;
+            const manifest = document.createElement('link');
+            manifest.rel = 'manifest';
+            manifest.href = 'manifest.webmanifest';
+            document.head.appendChild(manifest);
+        }
+
+        // Catálogo de peças automotivas (ordem alfabética)
+        const CATALOGO_PECAS = [
+            'Abraçadeira do escapamento', 'Acumulador (bateria)', 'Alternador', 'Amortecedor dianteiro',
+            'Amortecedor traseiro', 'Anel sincronizador', 'Bandeja de suspensão', 'Barra estabilizadora',
+            'Bieleta dianteira', 'Bieleta traseira', 'Bomba d\'água', 'Bomba de combustível',
+            'Bomba de óleo', 'Bomba de direção hidráulica', 'Bucha da bandeja', 'Bucha da barra estabilizadora',
+            'Bucha do eixo traseiro', 'Cabo de freio dianteiro', 'Cabo de freio traseiro', 'Cabo de vela',
+            'Cabo de embreagem', 'Cabeçote', 'Caixa de direção', 'Caixa de marchas (câmbio)',
+            'Catalisador', 'Cárter de óleo', 'Coifa homocinética', 'Compressor do ar condicionado',
+            'Condensador do ar condicionado', 'Correia dentada', 'Correia do alternador', 'Correia do ar condicionado',
+            'Correia poly-V', 'Coxim do motor', 'Coxim do câmbio', 'Cristal do farol', 'Cristal da lanterna',
+            'Cilindro mestre de freio', 'Cilindro auxiliar de freio', 'Disco de freio dianteiro', 'Disco de freio traseiro',
+            'Eixo homocinético', 'Eletroventilador do radiador', 'Embreagem (kit completo)', 'Escapamento completo',
+            'Espelho retrovisor externo', 'Espelho retrovisor interno', 'Farol dianteiro', 'Farol de milha',
+            'Filtro de ar do motor', 'Filtro de cabine', 'Filtro de combustível', 'Filtro de óleo',
+            'Fluído de freio', 'Fluído de embreagem', 'Forquilha da embreagem', 'Grampo da mola',
+            'Homocinética lado direito', 'Homocinética lado esquerdo', 'Interruptor da ignição', 'Junta do cabeçote',
+            'Junta do cárter', 'Junta homocinética', 'Kit de embreagem', 'Kit de velas', 'Kit correia dentada com tensor',
+            'Kit de suspensão', 'Kit de pastilhas e discos', 'Lanterna traseira', 'Lente do farol',
+            'Limpador de para-brisa (palheta)', 'Mangueira do radiador superior', 'Mangueira do radiador inferior',
+            'Mangueira do filtro de ar', 'Módulo de ignição', 'Motor de partida (motor de arranque)', 'Mola dianteira',
+            'Mola traseira', 'Óleo do motor', 'Óleo do câmbio', 'Óleo da direção hidráulica',
+            'Para-choque dianteiro', 'Para-choque traseiro', 'Para-brisa', 'Paralama', 'Pastilha de freio dianteira',
+            'Pastilha de freio traseira', 'Pivô de suspensão', 'Pneu', 'Radiador', 'Rolamento da roda dianteira',
+            'Rolamento da roda traseira', 'Rolamento tensor da correia', 'Retentor do virabrequim dianteiro',
+            'Retentor do virabrequim traseiro', 'Retentor do câmbio', 'Retrovisor externo', 'Roda',
+            'Rotor da ignição (disco)', 'Sensor de oxigênio (sonda lambda)', 'Sensor de temperatura do motor',
+            'Sensor de pressão do óleo', 'Sensor de ABS', 'Sensor MAP', 'Sensor MAF', 'Sensor de detonação',
+            'Sensor de velocidade', 'Sensor de nível do óleo', 'Silencioso dianteiro', 'Silencioso intermediário',
+            'Silencioso traseiro', 'Suporte do motor', 'Tensor da correia dentada', 'Terminal de direção',
+            'Tambor de freio traseiro', 'Tubo de escape', 'Turbocompressor (turbo)', 'Válvula EGR',
+            'Válvula termostática', 'Válvula solenoide', 'Válvula PCV', 'Ventoinha do ar condicionado',
+            'Velas de ignição', 'Virabrequim', 'Volante do motor', 'Volante motorizado',
+            'Bomba de alta pressão (diesel)', 'Bico injetor', 'Bomba injetora', 'Filtro separador de água (diesel)',
+            'Cremalheira de direção', 'Mangueira de direção', 'Cilindro de roda', 'Flexível de freio',
+            'Coxim do amortecedor', 'Batente do amortecedor', 'Coifa da caixa de direção', 'Articulação axial',
+            'Ponteira de direção', 'Semi-eixo', 'Triângulo de suspensão', 'Mancal de comando', 'Tucho hidráulico',
+            'Comando de válvulas', 'Coroa e pinhão', 'Cardã', 'Cruzeta do cardã', 'Lona de freio traseira',
+            'Sapata de freio traseira', 'Cilindro de roda traseiro', 'Reservatório de expansão', 'Tampa do radiador',
+            'Mangueira do ar condicionado', 'Evaporador do ar condicionado', 'Filtro secador do ar condicionado',
+            'Palheta do limpador traseiro', 'Motor do limpador', 'Farol de neblina', 'Lanterna de freio',
+            'Luz de placa', 'Interruptor de freio', 'Relé', 'Fusível', 'Chicote elétrico', 'Farol auxiliar',
+            'Guarnição da porta', 'Fechadura da porta', 'Maçaneta externa', 'Vidro da porta', 'Mecanismo do vidro',
+            'Banco do motorista', 'Cinto de segurança', 'Airbag', 'Painel de instrumentos', 'Volante',
+            'Pedal do acelerador', 'Pedal de freio', 'Pedal de embreagem', 'Cabo do acelerador'
+        ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+        // Catálogo de serviços (mão de obra) com valor sugerido em R$
+        const CATALOGO_SERVICOS = [
+            { nome: 'Alinhamento 3D', valor: 150 },
+            { nome: 'Alinhamento e balanceamento', valor: 200 },
+            { nome: 'Balanceamento (4 rodas)', valor: 80 },
+            { nome: 'Balanceamento (por roda)', valor: 25 },
+            { nome: 'Cambagem', valor: 100 },
+            { nome: 'Carga de gás do ar condicionado', valor: 180 },
+            { nome: 'Diagnóstico eletrônico (scanner)', valor: 100 },
+            { nome: 'Geometria / caster', valor: 120 },
+            { nome: 'Higienização do ar condicionado', valor: 120 },
+            { nome: 'Instalação de acessório', valor: 80 },
+            { nome: 'Limpeza de bicos injetores', valor: 150 },
+            { nome: 'Mão de obra por hora', valor: 120 },
+            { nome: 'Montagem de pneu', valor: 40 },
+            { nome: 'Remoção e instalação do motor', valor: 1500 },
+            { nome: 'Retífica de disco de freio', valor: 80 },
+            { nome: 'Revisão básica', valor: 120 },
+            { nome: 'Revisão completa', valor: 350 },
+            { nome: 'Sangria do sistema de freio', valor: 80 },
+            { nome: 'Teste de compressão do motor', valor: 100 },
+            { nome: 'Troca da bateria', valor: 40 },
+            { nome: 'Troca da correia dentada', valor: 280 },
+            { nome: 'Troca da embreagem (kit)', valor: 450 },
+            { nome: 'Troca de amortecedores (par)', valor: 200 },
+            { nome: 'Troca de discos de freio dianteiros', valor: 150 },
+            { nome: 'Troca de discos de freio traseiros', valor: 130 },
+            { nome: 'Troca de filtro de ar', valor: 30 },
+            { nome: 'Troca de filtro de cabine', valor: 40 },
+            { nome: 'Troca de fluido de freio', valor: 90 },
+            { nome: 'Troca de óleo do câmbio', valor: 100 },
+            { nome: 'Troca de óleo do motor', valor: 60 },
+            { nome: 'Troca de óleo e filtro', valor: 80 },
+            { nome: 'Troca de pastilhas de freio dianteiras', valor: 120 },
+            { nome: 'Troca de pastilhas de freio traseiras', valor: 100 },
+            { nome: 'Troca de semi-eixo', valor: 180 },
+            { nome: 'Troca de velas de ignição', valor: 80 },
+            { nome: 'Troca do filtro de combustível', valor: 50 },
+            { nome: 'Troca do tensor da correia', valor: 90 },
+            { nome: 'Troca homocinética', valor: 160 },
+            { nome: 'Regulagem de freio traseiro', valor: 70 },
+            { nome: 'Regulagem de faróis', valor: 60 },
+            { nome: 'Reparo do sistema de arrefecimento', valor: 150 },
+            { nome: 'Reparo do sistema de escape', valor: 120 },
+            { nome: 'Reparo elétrico', valor: 100 },
+            { nome: 'Solda / reparo em escapamento', valor: 90 }
+        ].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        // Marcas nacionais e importadas vendidas no Brasil
+        const CATALOGO_MARCAS = [
+            'Abarth', 'Agrale', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW', 'BYD',
+            'Cadillac', 'CAOA Chery', 'Changan', 'Chery', 'Chevrolet', 'Chrysler', 'Citroën', 'Dodge',
+            'DS Automobiles', 'Effa', 'Ferrari', 'Fiat', 'Ford', 'Genesis', 'Great Wall', 'GWM',
+            'Haval', 'Honda', 'Hummer', 'Hyundai', 'Infiniti', 'Isuzu', 'Iveco', 'JAC', 'Jaguar',
+            'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus', 'Lifan', 'Maserati', 'Mazda',
+            'Mercedes-Benz', 'Mini', 'Mitsubishi', 'Nissan', 'Ora', 'Peugeot', 'Porsche', 'RAM',
+            'Renault', 'Rolls-Royce', 'Seat', 'Seres', 'Smart', 'SsangYong', 'Subaru', 'Suzuki',
+            'Tesla', 'Toyota', 'Troller', 'Volkswagen', 'Volvo'
+        ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+        function normalizarTextoPeca(texto) {
+            return String(texto || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+        }
+
+        function escapeHtml(texto) {
+            return String(texto || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function filtrarPecasCatalogo(termo) {
+            const busca = normalizarTextoPeca(termo.trim());
+            if (!busca) return [];
+            return CATALOGO_PECAS.filter(peca => normalizarTextoPeca(peca).startsWith(busca)).slice(0, 25);
+        }
+
+        function filtrarServicosCatalogo(termo) {
+            const busca = normalizarTextoPeca(termo.trim());
+            if (!busca) return [];
+            return CATALOGO_SERVICOS.filter(s => normalizarTextoPeca(s.nome).startsWith(busca)).slice(0, 25);
+        }
+
+        function filtrarMarcasCatalogo(termo) {
+            const busca = normalizarTextoPeca(termo.trim());
+            if (!busca) return [];
+            return CATALOGO_MARCAS.filter(m => normalizarTextoPeca(m).startsWith(busca)).slice(0, 25);
+        }
+
+        function obterMarcaAtual() {
+            return document.getElementById('veiculo-marca')?.value?.trim() || marcaVeiculoAtual || '';
+        }
+
+        function encontrarChaveMarca(marca) {
+            const busca = normalizarTextoPeca(marca);
+            return Object.keys(CATALOGO_VEICULOS || {}).find((k) => normalizarTextoPeca(k) === busca) || null;
+        }
+
+        function filtrarModelosMarca(marca, termo) {
+            const chave = encontrarChaveMarca(marca);
+            if (!chave) return [];
+            const modelos = Object.keys(CATALOGO_VEICULOS[chave]);
+            const busca = normalizarTextoPeca(termo.trim());
+            if (!busca) return modelos.slice(0, 25);
+            return modelos.filter((m) => normalizarTextoPeca(m).startsWith(busca)).slice(0, 25);
+        }
+
+        function filtrarVersoesModelo(marca, modelo, termo) {
+            const chave = encontrarChaveMarca(marca);
+            if (!chave || !CATALOGO_VEICULOS[chave][modelo]) return [];
+            const versoes = CATALOGO_VEICULOS[chave][modelo];
+            const busca = normalizarTextoPeca(termo.trim());
+            if (!busca) return versoes.slice(0, 25);
+            return versoes.filter((v) => normalizarTextoPeca(v).startsWith(busca)).slice(0, 25);
+        }
+
+        function obterPlaceholderItem(tipo) {
+            return tipo === 'serviço'
+                ? 'Digite a letra do serviço (ex: A, T, M...)'
+                : 'Digite a letra da peça (ex: A, P, F...)';
+        }
+
+        function exibirSugestoesItem(idItem, termo) {
+            const lista = document.getElementById(`sugestoes-${idItem}`);
+            const item = itensOrcamento.find(i => i.id === idItem);
+            if (!lista || !item) return;
+
+            const tipo = item.tipo || 'peça';
+
+            if (tipo === 'serviço') {
+                const servicos = filtrarServicosCatalogo(termo);
+                if (!servicos.length) {
+                    lista.innerHTML = termo.trim()
+                        ? '<li class="peca-sugestoes-vazio">Nenhum serviço com essa letra. Digite manualmente e informe o valor.</li>'
+                        : '';
+                    lista.classList.toggle('hidden', !termo.trim());
+                    return;
+                }
+                lista.innerHTML = servicos.map(s =>
+                    `<li role="option"><span>${escapeHtml(s.nome)}</span><span class="sugestao-valor">${formatarMoeda(s.valor)}</span></li>`
+                ).join('');
+                lista.querySelectorAll('li[role="option"]').forEach(li => {
+                    li.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        const nome = li.querySelector('span')?.textContent?.trim() || li.textContent.trim();
+                        selecionarServicoDoCatalogo(idItem, nome);
+                    });
+                });
+            } else {
+                const pecas = filtrarPecasCatalogo(termo);
+                if (!pecas.length) {
+                    lista.innerHTML = termo.trim()
+                        ? '<li class="peca-sugestoes-vazio">Nenhuma peça com essa letra. Digite o nome manualmente.</li>'
+                        : '';
+                    lista.classList.toggle('hidden', !termo.trim());
+                    return;
+                }
+                lista.innerHTML = pecas.map(peca =>
+                    `<li role="option">${escapeHtml(peca)}</li>`
+                ).join('');
+                lista.querySelectorAll('li[role="option"]').forEach(li => {
+                    li.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        selecionarPecaDoCatalogo(idItem, li.textContent.trim());
+                    });
+                });
+            }
+
+            lista.classList.remove('hidden');
+        }
+
+        function fecharSugestoesItem(idItem) {
+            const lista = document.getElementById(`sugestoes-${idItem}`);
+            if (lista) lista.classList.add('hidden');
+        }
+
+        function exibirSugestoesMarca(termo) {
+            const lista = document.getElementById('sugestoes-marca');
+            if (!lista) return;
+
+            const marcas = filtrarMarcasCatalogo(termo);
+            if (!marcas.length) {
+                lista.innerHTML = termo.trim()
+                    ? '<li class="peca-sugestoes-vazio">Marca não encontrada. Digite manualmente.</li>'
+                    : '';
+                lista.classList.toggle('hidden', !termo.trim());
+                return;
+            }
+
+            lista.innerHTML = marcas.map(m => `<li role="option">${escapeHtml(m)}</li>`).join('');
+            lista.querySelectorAll('li[role="option"]').forEach(li => {
+                li.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selecionarMarcaVeiculo(li.textContent.trim());
+                });
+            });
+            lista.classList.remove('hidden');
+        }
+
+        function fecharSugestoesMarca() {
+            const lista = document.getElementById('sugestoes-marca');
+            if (lista) lista.classList.add('hidden');
+        }
+
+        function selecionarMarcaVeiculo(marca) {
+            marcaVeiculoAtual = marca;
+            modeloVeiculoAtual = '';
+            const inputMarca = document.getElementById('veiculo-marca');
+            const inputModelo = document.getElementById('veiculo-modelo');
+            const inputVersao = document.getElementById('veiculo-versao');
+            if (inputMarca) inputMarca.value = marca;
+            if (inputModelo) inputModelo.value = '';
+            if (inputVersao) inputVersao.value = '';
+            fecharSugestoesMarca();
+            sincronizarDados();
+            showToast('Marca selecionada! Agora escolha o modelo.');
+            inputModelo?.focus();
+        }
+
+        function exibirSugestoesModelo(termo) {
+            const lista = document.getElementById('sugestoes-modelo');
+            const marca = obterMarcaAtual();
+            if (!lista) return;
+            if (!marca) {
+                lista.innerHTML = '<li class="peca-sugestoes-vazio">Selecione a marca do veículo primeiro.</li>';
+                lista.classList.remove('hidden');
+                return;
+            }
+            const modelos = filtrarModelosMarca(marca, termo);
+            if (!modelos.length) {
+                lista.innerHTML = termo.trim()
+                    ? '<li class="peca-sugestoes-vazio">Modelo não encontrado. Digite manualmente.</li>'
+                    : '<li class="peca-sugestoes-vazio">Nenhum modelo nesta marca com essa letra.</li>';
+                lista.classList.toggle('hidden', !termo.trim() && !marca);
+                return;
+            }
+            lista.innerHTML = modelos.map((m) => `<li role="option">${escapeHtml(m)}</li>`).join('');
+            lista.querySelectorAll('li[role="option"]').forEach((li) => {
+                li.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selecionarModeloVeiculo(li.textContent.trim());
+                });
+            });
+            lista.classList.remove('hidden');
+        }
+
+        function fecharSugestoesModelo() {
+            document.getElementById('sugestoes-modelo')?.classList.add('hidden');
+        }
+
+        function selecionarModeloVeiculo(modelo) {
+            modeloVeiculoAtual = modelo;
+            marcaVeiculoAtual = obterMarcaAtual();
+            const inputModelo = document.getElementById('veiculo-modelo');
+            const inputVersao = document.getElementById('veiculo-versao');
+            if (inputModelo) inputModelo.value = modelo;
+            if (inputVersao) inputVersao.value = '';
+            fecharSugestoesModelo();
+            sincronizarDados();
+            showToast('Modelo selecionado! Agora escolha a versão.');
+            inputVersao?.focus();
+        }
+
+        function exibirSugestoesVersao(termo) {
+            const lista = document.getElementById('sugestoes-versao');
+            const marca = obterMarcaAtual();
+            const modelo = document.getElementById('veiculo-modelo')?.value?.trim() || modeloVeiculoAtual || '';
+            if (!lista) return;
+            if (!marca || !modelo) {
+                lista.innerHTML = '<li class="peca-sugestoes-vazio">Selecione marca e modelo primeiro.</li>';
+                lista.classList.remove('hidden');
+                return;
+            }
+            const versoes = filtrarVersoesModelo(marca, modelo, termo);
+            if (!versoes.length) {
+                lista.innerHTML = termo.trim()
+                    ? '<li class="peca-sugestoes-vazio">Versão não encontrada. Digite manualmente.</li>'
+                    : '';
+                lista.classList.toggle('hidden', !termo.trim());
+                return;
+            }
+            lista.innerHTML = versoes.map((v) => `<li role="option">${escapeHtml(v)}</li>`).join('');
+            lista.querySelectorAll('li[role="option"]').forEach((li) => {
+                li.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selecionarVersaoVeiculo(li.textContent.trim());
+                });
+            });
+            lista.classList.remove('hidden');
+        }
+
+        function fecharSugestoesVersao() {
+            document.getElementById('sugestoes-versao')?.classList.add('hidden');
+        }
+
+        function selecionarVersaoVeiculo(versao) {
+            const inputVersao = document.getElementById('veiculo-versao');
+            if (inputVersao) inputVersao.value = versao;
+            fecharSugestoesVersao();
+            sincronizarDados();
+        }
+
+        function selecionarPecaDoCatalogo(idItem, nomePeca) {
+            const item = itensOrcamento.find(i => i.id === idItem);
+            if (!item) return;
+
+            item.nome = nomePeca;
+            item.tipo = 'peça';
+
+            const input = document.getElementById(`nome-item-${idItem}`);
+            if (input) input.value = nomePeca;
+
+            fecharSugestoesItem(idItem);
+            sincronizarDados();
+            showToast('Peça selecionada! Agora anexe a foto do diagnóstico.');
+        }
+
+        function selecionarServicoDoCatalogo(idItem, nomeServico) {
+            const item = itensOrcamento.find(i => i.id === idItem);
+            const servico = CATALOGO_SERVICOS.find(s => s.nome === nomeServico);
+            if (!item) return;
+
+            item.nome = nomeServico;
+            item.tipo = 'serviço';
+            if (servico) item.valor = servico.valor;
+
+            const inputNome = document.getElementById(`nome-item-${idItem}`);
+            const inputValor = document.getElementById(`valor-item-${idItem}`);
+            if (inputNome) inputNome.value = nomeServico;
+            if (inputValor && servico) inputValor.value = servico.valor;
+
+            fecharSugestoesItem(idItem);
+            sincronizarDados();
+            showToast('Serviço adicionado com valor da mão de obra. Você pode alterar o preço se quiser.');
+        }
+
+        function onTipoItemChange(idItem, tipo) {
+            atualizarDadosItem(idItem, 'tipo', tipo);
+            const input = document.getElementById(`nome-item-${idItem}`);
+            if (input) {
+                input.placeholder = obterPlaceholderItem(tipo);
+                if (input.value.trim()) exibirSugestoesItem(idItem, input.value);
+            }
+        }
+
+        function configurarAutocompleteItem(idItem) {
+            const input = document.getElementById(`nome-item-${idItem}`);
+            const item = itensOrcamento.find(i => i.id === idItem);
+            if (!input || input.dataset.autocompleteOk) return;
+
+            input.placeholder = obterPlaceholderItem(item?.tipo || 'peça');
+            input.dataset.autocompleteOk = '1';
+            input.addEventListener('input', () => {
+                atualizarDadosItem(idItem, 'nome', input.value);
+                exibirSugestoesItem(idItem, input.value);
+            });
+            input.addEventListener('focus', () => {
+                if (input.value.trim()) exibirSugestoesItem(idItem, input.value);
+            });
+            input.addEventListener('blur', () => {
+                setTimeout(() => fecharSugestoesItem(idItem), 200);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharSugestoesItem(idItem);
+            });
+        }
+
+        function configurarAutocompleteMarca() {
+            const input = document.getElementById('veiculo-marca');
+            if (!input || input.dataset.autocompleteOk) return;
+
+            input.dataset.autocompleteOk = '1';
+            input.addEventListener('input', () => {
+                marcaVeiculoAtual = input.value.trim();
+                exibirSugestoesMarca(input.value);
+                sincronizarDados();
+            });
+            input.addEventListener('focus', () => {
+                if (input.value.trim()) exibirSugestoesMarca(input.value);
+            });
+            input.addEventListener('blur', () => {
+                setTimeout(() => fecharSugestoesMarca(), 200);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharSugestoesMarca();
+            });
+        }
+
+        function configurarAutocompleteModelo() {
+            const input = document.getElementById('veiculo-modelo');
+            if (!input || input.dataset.autocompleteOk) return;
+
+            input.dataset.autocompleteOk = '1';
+            input.addEventListener('input', () => {
+                modeloVeiculoAtual = input.value.trim();
+                exibirSugestoesModelo(input.value);
+            });
+            input.addEventListener('focus', () => {
+                if (obterMarcaAtual()) exibirSugestoesModelo(input.value);
+            });
+            input.addEventListener('blur', () => {
+                setTimeout(() => fecharSugestoesModelo(), 200);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharSugestoesModelo();
+            });
+        }
+
+        function configurarAutocompleteVersao() {
+            const input = document.getElementById('veiculo-versao');
+            if (!input || input.dataset.autocompleteOk) return;
+
+            input.dataset.autocompleteOk = '1';
+            input.addEventListener('input', () => exibirSugestoesVersao(input.value));
+            input.addEventListener('focus', () => exibirSugestoesVersao(input.value));
+            input.addEventListener('blur', () => {
+                setTimeout(() => fecharSugestoesVersao(), 200);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharSugestoesVersao();
+            });
+        }
+
+        // Mostrar notificações toast personalizadas
+        function showToast(mensagem) {
+            const toast = document.getElementById('toast-notification');
+            document.getElementById('toast-text').innerText = mensagem;
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 3000);
+        }
+
+        // Adição de Linhas de Item
+        function adicionarNovoItem(nome = '', tipo = 'peça', qtd = 1, valor = 0, foto = null) {
+            const id = Date.now() + Math.random().toString(36).substr(2, 9);
+            itensOrcamento.push({ id, nome, tipo, qtd, valor, foto });
+            desenharListaItensForm();
+            sincronizarDados();
+            setTimeout(() => {
+                const input = document.getElementById(`nome-item-${id}`);
+                if (input) input.focus();
+            }, 80);
+        }
+
+        function removerItem(id) {
+            itensOrcamento = itensOrcamento.filter(item => item.id !== id);
+            desenharListaItensForm();
+            sincronizarDados();
+        }
+
+        function atualizarDadosItem(id, campo, valor) {
+            const item = itensOrcamento.find(i => i.id === id);
+            if (item) {
+                if (campo === 'qtd' || campo === 'valor') {
+                    item[campo] = parseFloat(valor) || 0;
+                } else {
+                    item[campo] = valor;
+                }
+                sincronizarDados();
+            }
+        }
+
+        function manipularFotoItem(id, input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const item = itensOrcamento.find(i => i.id === id);
+                    if (item) {
+                        item.foto = e.target.result;
+                        desenharListaItensForm();
+                        sincronizarDados();
+                        showToast("Foto do diagnóstico anexada!");
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removerFotoItem(id) {
+            const item = itensOrcamento.find(i => i.id === id);
+            if (item) {
+                item.foto = null;
+                desenharListaItensForm();
+                sincronizarDados();
+            }
+        }
+
+        // Desenhar os Controladores de Item na Coluna Esquerda
+        function desenharListaItensForm() {
+            const container = document.getElementById('itens-lista');
+            container.innerHTML = '';
+
+            if (itensOrcamento.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 border border-dashed border-slate-700 rounded-xl text-slate-400 text-xs">
+                        Nenhum item na lista. Use <strong>Nova Peça</strong> ou <strong>Novo Serviço</strong> e digite a primeira letra para buscar no catálogo.
+                    </div>
+                `;
+                return;
+            }
+
+            itensOrcamento.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-2 relative text-white';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full uppercase">Item #${index+1}</span>
+                        <button onclick="removerItem('${item.id}')" class="text-rose-500 hover:text-rose-700 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 item-linha-mobile">
+                        <div class="sm:col-span-8 col-nome peca-autocomplete-wrap">
+                            <input type="text" id="nome-item-${item.id}" placeholder="${obterPlaceholderItem(item.tipo)}" value="${escapeHtml(item.nome)}" autocomplete="off" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500 outline-none">
+                            <ul id="sugestoes-${item.id}" class="peca-sugestoes hidden" role="listbox" aria-label="Catálogo de peças e serviços"></ul>
+                        </div>
+                        <div class="sm:col-span-4 col-tipo">
+                            <select onchange="onTipoItemChange('${item.id}', this.value)" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-1 py-1 text-xs focus:ring-1 focus:ring-amber-500 outline-none">
+                                <option value="peça" ${item.tipo === 'peça' ? 'selected' : ''}>Peça</option>
+                                <option value="serviço" ${item.tipo === 'serviço' ? 'selected' : ''}>Serviço</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 sm:grid-cols-12 gap-2">
+                        <div class="sm:col-span-4">
+                            <label class="block text-[8px] font-bold text-slate-400 uppercase">Qtd</label>
+                            <input type="number" min="1" value="${item.qtd}" oninput="atualizarDadosItem('${item.id}', 'qtd', this.value)" class="w-full bg-slate-950 text-white border border-slate-700 rounded text-center outline-none">
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="block text-[8px] font-bold text-slate-400 uppercase">${item.tipo === 'serviço' ? 'Valor M.O. (R$)' : 'Preço Un. (R$)'}</label>
+                            <input type="number" id="valor-item-${item.id}" step="0.01" min="0" value="${item.valor}" oninput="atualizarDadosItem('${item.id}', 'valor', this.value)" class="w-full bg-slate-950 text-white border border-slate-700 rounded text-right outline-none">
+                        </div>
+                        <div class="sm:col-span-4 flex items-end col-span-3">
+                            ${item.foto ? `
+                                <div class="w-full h-[26px] bg-emerald-950 text-emerald-400 text-[9px] font-bold border border-emerald-800 rounded flex items-center justify-between px-2">
+                                    <span class="flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Foto</span>
+                                    <button onclick="removerFotoItem('${item.id}')" class="text-rose-500 hover:text-rose-700"><i data-lucide="x" class="w-3 h-3"></i></button>
+                                </div>
+                            ` : `
+                                <label class="w-full h-[26px] bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-medium border border-slate-600 rounded flex items-center justify-center gap-1 cursor-pointer transition-colors">
+                                    <i data-lucide="camera" class="w-3.5 h-3.5 text-amber-500"></i> Foto
+                                    <input type="file" accept="image/*" onchange="manipularFotoItem('${item.id}', this)" class="hidden">
+                                </label>
+                            `}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+                configurarAutocompleteItem(item.id);
+            });
+            lucide.createIcons();
+        }
+
+        // Formatação de Valores Monetários para Real Brasileiro (R$)
+        function formatarMoeda(valor) {
+            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Sincronizar todos os dados do Formulário para a Folha de Visualização A4
+        function sincronizarDados() {
+            // Oficina
+            document.getElementById('preview-oficina-nome').innerText = document.getElementById('oficina-nome').value || 'FRIENDS GARAGE';
+            document.getElementById('preview-oficina-nif').innerText = 'CNPJ: ' + (document.getElementById('oficina-nif').value || '00.000.000/0001-00');
+            document.getElementById('preview-oficina-morada').innerText = document.getElementById('oficina-morada').value || 'Endereço da Oficina';
+            
+            const contacto = document.getElementById('oficina-contacto').value;
+            const email = document.getElementById('oficina-email').value;
+            document.getElementById('preview-oficina-contactos').innerText = `Celular: ${contacto} | E-mail: ${email}`;
+
+            // Assinaturas
+            document.getElementById('preview-assinatura-oficina').innerText = document.getElementById('oficina-nome').value || 'Pela Oficina';
+            document.getElementById('preview-assinatura-cliente').innerText = document.getElementById('cliente-nome').value || 'Cliente';
+
+            // Cliente & Veículo
+            document.getElementById('preview-cliente-nome').innerText = document.getElementById('cliente-nome').value || 'Cliente';
+            document.getElementById('preview-cliente-tel').innerText = document.getElementById('cliente-tel').value || '--- --- ---';
+            
+            const orcNum = document.getElementById('orcamento-numero').value || 'FG-0000';
+            document.getElementById('preview-orcamento-numero').innerText = orcNum;
+            document.getElementById('preview-rodape-numero').innerText = orcNum;
+
+            const marca = document.getElementById('veiculo-marca')?.value?.trim() || '';
+            const modelo = document.getElementById('veiculo-modelo')?.value?.trim() || '';
+            const versao = document.getElementById('veiculo-versao')?.value?.trim() || '';
+            document.getElementById('preview-veiculo-modelo').innerText = [marca, modelo, versao].filter(Boolean).join(' ') || '--';
+            document.getElementById('preview-veiculo-matricula').innerText = (document.getElementById('veiculo-matricula').value || '--').toUpperCase();
+            document.getElementById('preview-veiculo-km').innerText = (document.getElementById('veiculo-km').value || '--') + ' KM';
+            document.getElementById('preview-veiculo-detalhes').innerText = document.getElementById('veiculo-detalhes').value || '--';
+
+            // Sincronizar os logos da tela e do preview do PDF
+            const srcLogo = logoBase64 || LOGO_OFICIAL;
+            document.getElementById('oficina-logo-preview-src').src = srcLogo;
+            document.getElementById('preview-logo-img').src = srcLogo;
+
+            // Tabela de Peças & Serviços
+            const tabelaCorpo = document.getElementById('preview-tabela-corpo');
+            tabelaCorpo.innerHTML = '';
+
+            let somaPecas = 0;
+            let somaServicos = 0;
+
+            if (itensOrcamento.length === 0) {
+                tabelaCorpo.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400 italic">Nenhum item registrado no orçamento técnico.</td></tr>`;
+            } else {
+                itensOrcamento.forEach((item, index) => {
+                    const total = item.qtd * item.valor;
+                    if (item.tipo === 'peça') {
+                        somaPecas += total;
+                    } else {
+                        somaServicos += total;
+                    }
+
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-slate-100 hover:bg-slate-50/40 text-[9px]';
+                    row.innerHTML = `
+                        <td class="py-2.5 px-3 font-semibold text-slate-900 flex items-center gap-1">
+                            <span class="text-slate-400 font-mono">0${index+1}</span>
+                            ${item.nome || 'Descrição em falta'}
+                            ${item.foto ? '<span class="text-[8px] bg-amber-500/10 text-amber-700 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5"><i data-lucide="camera" class="w-2.5 h-2.5"></i> Com Foto</span>' : ''}
+                        </td>
+                        <td class="py-2.5 px-2 text-slate-500 capitalize">${item.tipo}</td>
+                        <td class="py-2.5 px-2 text-center font-mono">${item.qtd}</td>
+                        <td class="py-2.5 px-2 text-right font-mono">${formatarMoeda(item.valor)}</td>
+                        <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">${formatarMoeda(total)}</td>
+                    `;
+                    tabelaCorpo.appendChild(row);
+                });
+            }
+
+            // Desconto e Totais
+            const desconto = parseFloat(document.getElementById('desconto-valor').value) || 0;
+            const totalGeral = Math.max(0, (somaPecas + somaServicos) - desconto);
+
+            document.getElementById('preview-total-pecas').innerText = formatarMoeda(somaPecas);
+            document.getElementById('preview-total-servicos').innerText = formatarMoeda(somaServicos);
+            document.getElementById('preview-total-desconto').innerText = `- ${formatarMoeda(desconto)}`;
+            document.getElementById('preview-total-geral').innerText = formatarMoeda(totalGeral);
+
+            document.getElementById('preview-garantia-meses').innerText = document.getElementById('garantia-meses').value || '6';
+            document.getElementById('preview-observacoes').innerText = document.getElementById('observacoes').value || 'Sem notas adicionais.';
+
+            // Renderização da Galeria de Fotos (Página 2)
+            const galeriaFotos = document.getElementById('preview-galeria-fotos');
+            galeriaFotos.innerHTML = '';
+
+            const itensComFoto = itensOrcamento.filter(i => i.foto);
+
+            if (itensComFoto.length === 0) {
+                galeriaFotos.className = "block text-center py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50";
+                galeriaFotos.innerHTML = `
+                    <div class="max-w-xs mx-auto text-slate-400">
+                        <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-300 mb-2"></i>
+                        <p class="font-bold text-xs text-slate-700">Nenhum registro fotográfico</p>
+                        <p class="text-[9px] mt-1 text-slate-400">Adicione imagens reais das peças danificadas para que elas apareçam diagramadas aqui automaticamente.</p>
+                    </div>
+                `;
+            } else {
+                galeriaFotos.className = "grid grid-cols-1 sm:grid-cols-2 gap-4";
+                itensComFoto.forEach((item) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between";
+                    card.innerHTML = `
+                        <div class="h-36 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-200 relative">
+                            <img src="${item.foto}" class="w-full h-full object-cover" />
+                            <span class="absolute top-2 left-2 bg-amber-600 text-black text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Evidência Diagnóstico</span>
+                        </div>
+                        <div class="p-2.5">
+                            <h4 class="font-bold text-slate-800 text-[10px]">${item.nome}</h4>
+                            <p class="text-[9px] text-slate-555 text-slate-500 mt-0.5 leading-snug">Identificamos desgaste acentuado que compromete o funcionamento e a segurança do conjunto.</p>
+                        </div>
+                    `;
+                    galeriaFotos.appendChild(card);
+                });
+            }
+
+            // Atualização da Data de Emissão para a data atual
+            const hoje = new Date();
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const ano = hoje.getFullYear();
+            document.getElementById('preview-data-hoje').innerText = `${dia}/${mes}/${ano}`;
+
+            lucide.createIcons();
+            agendarSalvamento();
+        }
+
+        function imagemParaBase64(img) {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width || 200;
+            canvas.height = img.naturalHeight || img.height || 200;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.92);
+        }
+
+        function aplicarLogoNoSistema() {
+            const src = (logoBase64 && logoBase64.startsWith('data:'))
+                ? logoBase64
+                : (window.LOGO_EMBED_BASE64 || LOGO_OFICIAL);
+            if (window.LOGO_EMBED_BASE64 && !logoBase64?.startsWith('data:')) {
+                logoBase64 = window.LOGO_EMBED_BASE64;
+            }
+            const logoPainel = document.getElementById('oficina-logo-preview-src');
+            const logoPdf = document.getElementById('preview-logo-img');
+            if (logoPainel) logoPainel.src = src;
+            if (logoPdf) logoPdf.src = src;
+        }
+
+        function inicializarLogo() {
+            if (window.LOGO_EMBED_BASE64) {
+                logoBase64 = window.LOGO_EMBED_BASE64;
+                aplicarLogoNoSistema();
+                return;
+            }
+            carregarLogoDeArquivo();
+        }
+
+        async function aguardarImagem(img) {
+            if (img.complete && img.naturalWidth > 0) return;
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+        }
+
+        async function prepararImagensParaPdf(elemento) {
+            if (window.LOGO_EMBED_BASE64) logoBase64 = window.LOGO_EMBED_BASE64;
+            const imagens = elemento.querySelectorAll('img');
+            for (const img of imagens) {
+                if (img.id === 'preview-logo-img' || img.id === 'oficina-logo-preview-src') {
+                    img.src = logoBase64 || window.LOGO_EMBED_BASE64 || img.src;
+                }
+                await aguardarImagem(img);
+                if (!img.src || img.src.startsWith('data:')) continue;
+                try {
+                    img.crossOrigin = 'anonymous';
+                    img.src = imagemParaBase64(img);
+                    await aguardarImagem(img);
+                } catch (e) {
+                    if (window.LOGO_EMBED_BASE64 && (img.id === 'preview-logo-img')) {
+                        img.src = window.LOGO_EMBED_BASE64;
+                        await aguardarImagem(img);
+                    }
+                }
+            }
+        }
+
+        function clonarParaPdf(elemento) {
+            const clone = elemento.cloneNode(true);
+            clone.id = 'orcamento-pdf-clone';
+            clone.classList.remove('select-none', 'pointer-events-none');
+            clone.querySelectorAll('[data-lucide]').forEach((el) => el.remove());
+            clone.style.cssText = [
+                'position:absolute',
+                'left:0',
+                `top:${window.scrollY || 0}px`,
+                'width:794px',
+                'max-width:none',
+                'min-height:1123px',
+                'padding:38px',
+                'margin:0',
+                'background:#fff',
+                'box-shadow:none',
+                'box-sizing:border-box',
+                'z-index:2147483647',
+                'opacity:1',
+                'overflow:visible',
+                'pointer-events:none',
+                'transform:none'
+            ].join(';');
+            clone.style.display = 'block';
+            clone.style.visibility = 'visible';
+            document.body.appendChild(clone);
+            return clone;
+        }
+
+        function canvasTemConteudo(canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) return true;
+            const largura = canvas.width;
+            const altura = canvas.height;
+            const amostras = 80;
+            let pixelsNaoBrancos = 0;
+            for (let i = 0; i < amostras; i++) {
+                const x = Math.floor((largura * ((i * 37) % amostras)) / amostras);
+                const y = Math.floor((altura * ((i * 53) % amostras)) / amostras);
+                const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+                if (a > 0 && (r < 245 || g < 245 || b < 245)) pixelsNaoBrancos++;
+            }
+            return pixelsNaoBrancos > 2;
+        }
+
+        async function baixarPdfPorCanvas(elemento, filename) {
+            const JsPdf = window.jspdf?.jsPDF || window.jsPDF;
+            if (typeof html2canvas === 'undefined' || !JsPdf) {
+                throw new Error('Bibliotecas html2canvas/jsPDF nÃ£o carregadas.');
+            }
+
+            const canvas = await html2canvas(elemento, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                scrollX: 0,
+                scrollY: -(window.scrollY || 0),
+                width: elemento.scrollWidth,
+                height: elemento.scrollHeight,
+                windowWidth: 794,
+                windowHeight: Math.max(1123, elemento.scrollHeight)
+            });
+
+            if (!canvasTemConteudo(canvas)) {
+                throw new Error('A captura do orÃ§amento veio em branco.');
+            }
+
+            const pdf = new JsPdf('p', 'mm', 'a4');
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const margin = 5;
+            const printableWidth = pageWidth - margin * 2;
+            const printableHeight = pageHeight - margin * 2;
+            const pageCanvasHeight = Math.floor((canvas.width * printableHeight) / printableWidth);
+
+            let renderedHeight = 0;
+            let pageIndex = 0;
+
+            while (renderedHeight < canvas.height) {
+                const sliceHeight = Math.min(pageCanvasHeight, canvas.height - renderedHeight);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceHeight;
+                const pageCtx = pageCanvas.getContext('2d');
+                pageCtx.fillStyle = '#ffffff';
+                pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                pageCtx.drawImage(canvas, 0, renderedHeight, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                if (pageIndex > 0) pdf.addPage();
+                const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+                const imgHeight = (sliceHeight * printableWidth) / canvas.width;
+                pdf.addImage(imgData, 'JPEG', margin, margin, printableWidth, imgHeight);
+
+                renderedHeight += sliceHeight;
+                pageIndex++;
+            }
+
+            pdf.save(filename);
+        }
+
+        // Geração e Exportação do arquivo PDF com html2pdf.js
+        async function gerarPDF() {
+            if (typeof html2canvas === 'undefined' || !(window.jspdf?.jsPDF || window.jsPDF)) {
+                showToast('Biblioteca PDF não carregou. Conecte à internet e atualize a página (F5).');
+                return;
+            }
+
+            const element = document.getElementById('orcamento-pdf-conteudo');
+            const btn = document.querySelector('button[onclick="gerarPDF()"]');
+            if (!element || !btn) {
+                showToast('Erro interno: área do orçamento não encontrada.');
+                return;
+            }
+
+            sincronizarDados();
+            inicializarLogo();
+
+            const clienteNome = document.getElementById('cliente-nome').value || 'Cliente';
+            const orcNum = document.getElementById('orcamento-numero').value || '0000';
+            const filename = `FriendsGarage_${orcNum}_${clienteNome.replace(/\s+/g, '_')}.pdf`;
+
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = 'Gerando PDF...';
+
+            let clone = null;
+            try {
+                clone = clonarParaPdf(element);
+                await prepararImagensParaPdf(clone);
+                await new Promise((r) => setTimeout(r, 400));
+                if (document.fonts?.ready) await document.fonts.ready;
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+
+                await baixarPdfPorCanvas(clone, filename);
+
+                showToast('Orçamento PDF gerado e baixado com sucesso!');
+            } catch (err) {
+                console.error('Erro na conversão do PDF:', err);
+                try {
+                    await prepararImagensParaPdf(element);
+                    await baixarPdfPorCanvas(element, filename);
+                    showToast('Orçamento PDF gerado com sucesso!');
+                } catch (err2) {
+                    console.error('Fallback PDF:', err2);
+                    showToast('Erro ao gerar PDF. Use o Google Chrome com internet na primeira vez.');
+                }
+            } finally {
+                if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        // Carregar Exemplo Demonstrativo
+        function carregarExemplo() {
+            itensOrcamento = [];
+            
+            document.getElementById('oficina-nome').value = 'Friends Garage';
+            document.getElementById('oficina-nif').value = '31.298.774/0001-74';
+            document.getElementById('oficina-contacto').value = '(11) 99898-1864';
+            document.getElementById('oficina-email').value = 'friends.garage13@gmail.com';
+            document.getElementById('oficina-morada').value = 'Rua José Fracarolli, 359 - Jd. Nossa Senhora Aparecida, Francisco Morato - SP';
+
+            document.getElementById('cliente-nome').value = 'Carlos Eduardo Magalhães';
+            document.getElementById('cliente-tel').value = '(11) 99123-4567';
+            document.getElementById('orcamento-numero').value = 'FG-2026-104';
+
+            document.getElementById('veiculo-marca').value = 'Volkswagen';
+            document.getElementById('veiculo-modelo').value = 'Golf';
+            document.getElementById('veiculo-versao').value = 'GTI 2.0';
+            marcaVeiculoAtual = 'Volkswagen';
+            modeloVeiculoAtual = 'Golf';
+            document.getElementById('veiculo-matricula').value = 'FGD-4G20';
+            document.getElementById('veiculo-km').value = '78.500';
+            document.getElementById('veiculo-detalhes').value = '2019 / Cinza Carbono';
+
+            document.getElementById('desconto-valor').value = '150';
+            document.getElementById('garantia-meses').value = '6';
+            document.getElementById('observacoes').value = 'Recomendado alinhamento tridimensional após a troca dos amortecedores. Desconto de cortesia da Friends Garage aplicado sobre o subtotal.';
+
+            // Imagens descritivas em SVG para demonstração
+            const amortecedorDanificado = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231e293b'/><circle cx='200' cy='150' r='80' fill='none' stroke='%23475569' stroke-width='20'/><line x1='200' y1='110' x2='200' y2='190' stroke='%23f59e0b' stroke-width='10'/><text x='50% ' y='85% ' dominant-baseline='middle' text-anchor='middle' fill='%23f59e0b' font-family='sans-serif' font-size='14' font-weight='bold'>Amortecedor dianteiro com severo vazamento</text></svg>";
+            const pastilhaDesgastada = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231e293b'/><rect x='80' y='120' width='240' height='60' rx='10' fill='%23334155'/><rect x='80' y='160' width='240' height='10' fill='%23f43f5e'/><text x='50% ' y='85% ' dominant-baseline='middle' text-anchor='middle' fill='%23f43f5e' font-family='sans-serif' font-size='14' font-weight='bold'>Pastilhas de freio com espessura crítica</text></svg>";
+
+            adicionarNovoItem('Par de Amortecedores Dianteiros Bilstein B4', 'peça', 1, 1450.00, amortecedorDanificado);
+            adicionarNovoItem('Jogo de Pastilhas de Freio EBC Greenstuff (Dianteiras)', 'peça', 1, 620.00, pastilhaDesgastada);
+            adicionarNovoItem('Troca de amortecedores (par)', 'serviço', 1, 200.00, null);
+            adicionarNovoItem('Alinhamento 3D', 'serviço', 1, 150.00, null);
+
+            desenharListaItensForm();
+            sincronizarDados();
+            salvarDadosLocal();
+            showToast("Exemplo técnico carregado!");
+        }
+
+        // Primeiro carregamento
+        window.onload = function() {
+            const restaurou = carregarDadosLocal();
+            configurarAutocompleteMarca();
+            configurarAutocompleteModelo();
+            configurarAutocompleteVersao();
+            if (restaurou) {
+                marcaVeiculoAtual = document.getElementById('veiculo-marca')?.value?.trim() || '';
+                modeloVeiculoAtual = document.getElementById('veiculo-modelo')?.value?.trim() || '';
+            }
+            inicializarLogo();
+            sincronizarDados();
+            registrarManifest();
+            registrarServiceWorker();
+            if (restaurou) showToast('Orçamento anterior restaurado automaticamente.');
+            window.addEventListener('beforeunload', salvarDadosLocal);
+        };
+
+        function carregarLogoDeArquivo() {
+            const img = new Image();
+            img.onload = function() {
+                try {
+                    logoBase64 = imagemParaBase64(img);
+                } catch (e) {
+                    logoBase64 = LOGO_OFICIAL;
+                }
+                aplicarLogoNoSistema();
+                sincronizarDados();
+            };
+            img.onerror = function() {
+                logoBase64 = LOGO_OFICIAL;
+                aplicarLogoNoSistema();
+                sincronizarDados();
+            };
+            img.src = LOGO_OFICIAL;
+        }
+    </script>
+</body>
+</html>
